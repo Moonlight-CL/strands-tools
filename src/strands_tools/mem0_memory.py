@@ -209,7 +209,7 @@ class Mem0ServiceClient:
             config = self._configure_neptune_analytics_backend(config)
 
         if os.environ.get("MEM0_POSTGRESQL_HOST"):
-            logger.info("Using PostgreSQL backend (Mem0Memory with PostgreSQL)")
+            logger.debug("Using PostgreSQL backend (Mem0Memory with PostgreSQL)")
             return self._initialize_postgresql_client(config)
 
         if os.environ.get("OPENSEARCH_HOST"):
