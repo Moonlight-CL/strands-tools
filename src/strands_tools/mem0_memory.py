@@ -208,6 +208,10 @@ class Mem0ServiceClient:
             logger.debug("Using Neptune Analytics graph backend (Mem0Memory with Neptune Analytics)")
             config = self._configure_neptune_analytics_backend(config)
 
+        if os.environ.get("MEM0_POSTGRESQL_HOST"):
+            logger.info("Using PostgreSQL backend (Mem0Memory with PostgreSQL)")
+            return self._initialize_postgresql_client(config)
+
         if os.environ.get("OPENSEARCH_HOST"):
             logger.debug("Using OpenSearch backend (Mem0Memory with OpenSearch)")
             return self._initialize_opensearch_client(config)
@@ -230,6 +234,43 @@ class Mem0ServiceClient:
             "config": {"endpoint": f"neptune-graph://{os.environ.get('NEPTUNE_ANALYTICS_GRAPH_IDENTIFIER')}"},
         }
         return config
+    
+    def _initialize_postgresql_client(self, config: Optional[Dict] = None) -> Mem0Memory:
+        """Initialize a Mem0 client with PostgreSQL backend.
+
+        Args:
+            config: Optional configuration dictionary to override defaults.
+
+        Returns:
+            An initialized Mem0Memory instance configured for PostgreSQL.
+        """
+        # Prepare configuration
+        pg_default_config = {
+        "embedder": {"provider": "aws_bedrock", "config": {"model": os.environ.get("MEM0_EMBEDDING_MODEL","amazon.titan-embed-text-v2:0")}},
+        "llm": {
+            "provider": "aws_bedrock",
+            "config": {
+                "model": os.environ.get("MEM0_LLM_MODEL","us.anthropic.claude-3-5-haiku-20241022-v1:0"),
+                "temperature": 0.1,
+                "max_tokens": 2000,
+            },
+        },
+        "vector_store": {
+            "provider": "pgvector",
+            "config": {
+                "collection_name": os.environ.get("MEM0_POSTGRESQL_COLLECTION", "mem0"),
+                "host": os.environ.get("MEM0_POSTGRESQL_HOST", "localhost"),
+                "port": os.environ.get("MEM0_POSTGRESQL_PORT", "5432"),
+                "user": os.environ.get("MEM0_POSTGRESQL_USER"),
+                "password": os.environ.get("MEM0_POSTGRESQL_PASSWORD"),
+                "embedding_model_dims": 1024,
+            }
+        }
+    }
+        merged_config = self._merge_config(pg_default_config)
+        # User configuration takes priority
+        merged_config = self._merge_config(config)
+        return Mem0Memory.from_config(config_dict=merged_config)
 
     def _initialize_opensearch_client(self, config: Optional[Dict] = None) -> Mem0Memory:
         """Initialize a Mem0 client with OpenSearch backend.

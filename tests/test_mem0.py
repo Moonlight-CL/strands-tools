@@ -523,3 +523,46 @@ def test_faiss_client(mock_mem0_memory, mock_tool):
     # Assertions
     assert result["status"] == "success"
     assert "Test memory content" in str(result["content"][0]["text"])
+
+
+@patch.dict(os.environ, 
+            {
+                "MEM0_POSTGRESQL_HOST": "test-postgresql.amazonaws.com", 
+                "MEM0_POSTGRESQL_PORT": "5432", 
+                "MEM0_POSTGRESQL_USER": "mem0_user", 
+                "MEM0_POSTGRESQL_PASSWORD": "test_password"
+            }
+        )
+@patch("strands_tools.mem0_memory.Mem0Memory")
+def test_create_mem0_with_pgvector(mock_mem0_memory):
+    """Test create mem0 client using pgvector as vector store"""
+
+    mock_client = MagicMock()
+    mock_mem0_memory.from_config.return_value = mock_client
+
+    _client = Mem0ServiceClient()
+
+    config_dict = {
+        "embedder": {"provider": "aws_bedrock","config": {"model":  "amazon.titan-embed-text-v2:0"}},
+        "llm": {
+            "provider": "aws_bedrock",
+            "config": {
+                "model":  "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+                "temperature":  0.1,
+                "max_tokens": 2000,
+            },
+        },
+        "vector_store": {
+            "provider": "pgvector",
+            "config": {
+                "collection_name": "mem0",
+                "host": "test-postgresql.amazonaws.com",
+                "port": "5432",
+                "user": "mem0_user",
+                "password": "test_password",
+                "embedding_model_dims": 1024,
+            }
+        }
+    }
+
+    mock_mem0_memory.from_config.assert_called_with(config_dict=config_dict)
